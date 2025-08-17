@@ -3,6 +3,7 @@ const router = express.Router();
 import Message from '../models/Message.js';
 import { createTicket } from '../controllers/ticketController.js';
 import axios from 'axios';
+import { getAIResponse } from '../../utils/gemini.js'; // Assuming you have a utility to get AI responses
 // GET /webhook — Facebook verification
 router.get('/', (req, res) => {
   console.log('Webhook verification request received');
@@ -76,17 +77,18 @@ router.post("/", async (req, res) => {
     ) {
       const message = data.entry[0].changes[0].value.messages[0];
       const from = message.from; // WhatsApp user number
-      const text = message.text?.body; // User message text
+      const userMessage = message.text?.body; // User message text
 
-      console.log("Received message:", text, "from:", from);
-
+      console.log("Received message:", userMessage, "from:", from);
+      const aiReply = await getAIResponse(userMessage);
+      // console.log("AI Reply:", aiReply);
       // Reply via WhatsApp API
       await axios.post(
         `https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`,
         {
           messaging_product: "whatsapp",
           to: from,
-          text: { body: `Thanks for your message: "${text}"` }
+          text: { body: `Thanks for your message: "${aiReply}"` }
         },
         {
           headers: {
