@@ -1,10 +1,11 @@
 import express from 'express';
 const router = express.Router();
-import Message from '../models/Message.js'; // Ensure this path is correct
+import Message from '../models/Message.js';
+import { createTicket } from '../controllers/ticketController.js';
 
 // GET /webhook — Facebook verification
 router.get('/', (req, res) => {
-    console.log('Webhook verification request received');
+  console.log('Webhook verification request received');
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -29,7 +30,7 @@ router.post('/', async (req, res) => {
 
       if (Array.isArray(messages) && messages.length) {
         const msg = messages[0];
-        const from = msg.from;                                // phone
+        const from = msg.from;                                // phone number
         const name = value?.contacts?.[0]?.profile?.name || '';
         let text = '';
 
@@ -40,12 +41,19 @@ router.post('/', async (req, res) => {
                  msg.interactive?.list_reply?.title || '';
         }
 
-        await Message.create({
-          from, name, text, raw: body, direction: 'inbound'
+        // 1️⃣ Save incoming message
+        const newMessage = await Message.create({
+          from,
+          name,
+          text,
+          raw: body,
+          direction: 'inbound'
         });
 
+        // 2️⃣ Link message to a ticket
+        await createTicket(from, newMessage._id);
+
         console.log(`📩 ${from} (${name}): ${text}`);
-        // (We’ll add AI + auto-reply here in the next step)
       }
     }
     res.sendStatus(200);
@@ -54,4 +62,5 @@ router.post('/', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 export default router;

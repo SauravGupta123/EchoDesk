@@ -9,6 +9,7 @@ import authRoutes from "./src/routes/auth.js";
 import webhookRouter from './src/routes/webhooks.js';
 import mongoose from 'mongoose';
 import connectDB from './src/db.js';
+import ticketRoutes from './src/routes/ticketRoutes.js'; // Import ticket routes    
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ app.use(morgan('dev'));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/webhook', webhookRouter);
 app.use("/api/auth", authRoutes);
+app.use("/api/tickets", ticketRoutes);
 // error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled:', err);
