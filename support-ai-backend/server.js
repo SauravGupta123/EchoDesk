@@ -8,6 +8,7 @@ import authRoutes from "./src/routes/auth.js";
 // import connectDB from './src/db.js';
 import webhookRouter from './src/routes/webhooks.js';
 import mongoose from 'mongoose';
+import connectDB from './src/db.js';
 
 const app = express();
 app.use(cors());
@@ -24,16 +25,7 @@ app.use((err, req, res, next) => {
 });
 
 
-
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log("✅ MongoDB connected");
-}).catch((err) => {
-  console.error("❌ MongoDB connection failed:", err);
-});
-
+connectDB();
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
