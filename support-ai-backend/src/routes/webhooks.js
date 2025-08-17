@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Message = require('../models/message');
+import Message from '../models/Message.js'; // Ensure this path is correct
 
 // GET /webhook — Facebook verification
 router.get('/', (req, res) => {
+    console.log('Webhook verification request received');
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -53,5 +54,4 @@ router.post('/', async (req, res) => {
     res.sendStatus(500);
   }
 });
-
-module.exports = router;
+export default router;
