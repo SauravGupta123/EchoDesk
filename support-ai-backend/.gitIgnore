@@ -20,6 +20,7 @@ coverage/
 /support-ai-backend/node_modules
 # Optional: OS generated files
 Thumbs.db
+dots.txt
 
 # Optional: build output
 /dist/
