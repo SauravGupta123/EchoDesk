@@ -1,11 +1,13 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-require('express-async-errors');
-
-const connectDB = require('./src/db');
-const webhookRouter = require('./src/routes/webhooks');
+import dotenv from 'dotenv';
+dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import 'express-async-errors';
+import authRoutes from "./src/routes/auth.js";
+// import connectDB from './src/db.js';
+import webhookRouter from './src/routes/webhooks.js';
+import mongoose from 'mongoose';
 
 const app = express();
 app.use(cors());
@@ -14,14 +16,27 @@ app.use(morgan('dev'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/webhook', webhookRouter);
-
+app.use("/api/auth", authRoutes);
 // error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled:', err);
   res.status(500).json({ error: 'internal_error' });
 });
 
-const PORT = process.env.PORT || 3000;
-connectDB().then(() => {
-  app.listen(PORT, () => console.log(`API running on :${PORT}`));
+
+
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log("✅ MongoDB connected");
+}).catch((err) => {
+  console.error("❌ MongoDB connection failed:", err);
 });
+
+app.get("/", (req, res) => {
+  res.send("Backend is running 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
