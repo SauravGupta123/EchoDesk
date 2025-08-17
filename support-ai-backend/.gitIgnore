@@ -1,1 +1,48 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+debug.log
+.DS_Store
+.idea/
+.vscode/
+coverage/
+
+/support-ai-backend/node_modules
+# Optional: OS generated files
+Thumbs.db
+
+# Optional: build output
+/dist/
+/build/
+
+# Optional: test output
+/test-results/
+
+# Optional: misc
+*.swp
+*.swo
+
+# Ignore database files
+*.sqlite
+*.db
+
+# Ignore backups
+*.bak
+
+# Ignore error reports
+error.log
+
+# Ignore lock files
+package-lock.json
+yarn.lock
 /node_modules
