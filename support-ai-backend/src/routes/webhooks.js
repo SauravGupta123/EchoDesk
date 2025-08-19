@@ -1,9 +1,26 @@
+
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 const router = express.Router();
 import Message from '../models/Message.js';
-import { createTicket } from '../controllers/ticketController.js';
+import Faq from '../models/Faq.js';
+import { Pinecone } from "@pinecone-database/pinecone";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from 'axios';
-import { getAIResponse } from '../../utils/gemini.js'; // Assuming you have a utility to get AI responses
+import { agentRouter } from '../services/langraph/agents.js';
+
+
+
+const genAI = new
+ GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+const orderIndex = pinecone.index("orders-index");
+const faqIndex = pinecone.index("faq-index"); // You need to create/seed this index
+
+const SIMILARITY_THRESHOLD = 0.8; // Adjust as needed
+
 // GET /webhook — Facebook verification
 router.get('/', (req, res) => {
   console.log('Webhook verification request received');
@@ -19,56 +36,9 @@ router.get('/', (req, res) => {
 });
 
 // POST /webhook — incoming WhatsApp messages
-// router.post('/', async (req, res) => {
-//   try {
-//     const body = req.body;
-
-//     if (body?.object === 'whatsapp_business_account') {
-//       const entry = body.entry?.[0];
-//       const change = entry?.changes?.[0];
-//       const value = change?.value;
-//       const messages = value?.messages;
-
-//       if (Array.isArray(messages) && messages.length) {
-//         const msg = messages[0];
-//         const from = msg.from;                                // phone number
-//         const name = value?.contacts?.[0]?.profile?.name || '';
-//         let text = '';
-
-//         if (msg.type === 'text') text = msg.text?.body || '';
-//         else if (msg.type === 'button') text = msg.button?.text || '';
-//         else if (msg.type === 'interactive') {
-//           text = msg.interactive?.button_reply?.title ||
-//                  msg.interactive?.list_reply?.title || '';
-//         }
-
-//         // 1️⃣ Save incoming message
-//         const newMessage = await Message.create({
-//           from,
-//           name,
-//           text,
-//           raw: body,
-//           direction: 'inbound'
-//         });
-
-//         // 2️⃣ Link message to a ticket
-//         await createTicket(from, newMessage._id);
-
-//         console.log(`📩 ${from} (${name}): ${text}`);
-//       }
-//     }
-//     res.sendStatus(200);
-//   } catch (e) {
-//     console.error('Webhook error:', e);
-//     res.sendStatus(500);
-//   }
-// });
-
-
 router.post("/", async (req, res) => {
   try {
     const data = req.body;
-
     if (
       data.object &&
       data.entry &&
@@ -76,35 +46,80 @@ router.post("/", async (req, res) => {
       data.entry[0].changes[0].value.messages
     ) {
       const message = data.entry[0].changes[0].value.messages[0];
-      const from = message.from; // WhatsApp user number
-      const userMessage = message.text?.body; // User message text
+      const from = message.from;
+      const phoneNo= message.from;
+      const userMessage = message.text?.body;
 
-      console.log("Received message:", userMessage, "from:", from);
-      const aiReply = await getAIResponse(userMessage);
-      // console.log("AI Reply:", aiReply);
-      // Reply via WhatsApp API
-      await axios.post(
-        `https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: from,
-          text: { body: `Thanks for your message: "${aiReply}"` }
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
+      // 1️⃣ Embed user message
+      const embeddingResponse = await embedModel.embedContent(userMessage);
+      const userEmbedding = embeddingResponse.embedding.values || embeddingResponse.data || embeddingResponse.embedding;
+
+      // 2️⃣ Query Pinecone for orders
+      const orderResults = await orderIndex.query({
+        vector: userEmbedding,
+        topK: 1,
+        includeMetadata: true,
+      });
+
+      // 3️⃣ Query Pinecone for FAQ
+      const faqResults = await faqIndex.query({
+        vector: userEmbedding,
+        topK: 1,
+        includeMetadata: true,
+      });
+
+      // 4️⃣ Select best context
+      let context = null;
+      let contextType = null;
+      if (orderResults.matches?.[0]?.score > SIMILARITY_THRESHOLD) {
+        context = orderResults.matches[0].metadata.text;
+        contextType = "order";
+      } else if (faqResults.matches?.[0]?.score > SIMILARITY_THRESHOLD) {
+        context = faqResults.matches[0].metadata.text;
+        contextType = "faq";
+      }
+
+      // 5️⃣ Generate reply with Gemini
+let reply;
+if (userMessage) {
+const result = await agentRouter.invoke({
+  userMessage,
+  customerNumber: from,
+});
+
+reply = result;  // cleaner access
+console.log('Generated reply:', result);
+   
+} else {
+  reply = "Sorry, I didn't understand your message. Can you rephrase?";
+}
+  res.json({ 
+  status: "success",
+  replyMsg: reply.replyMsg,
+  // handledBy: rep?.source || "unknown"
+});
+
+      // 6️⃣ Send reply via WhatsApp API
+      // await axios.post(
+      //   `https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`,
+      //   {
+      //     messaging_product: "whatsapp",
+      //     to: from,
+      //     text: { body: reply }
+      //   },
+      //   {
+      //     headers: {
+      //       Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}`,
+      //       "Content-Type": "application/json"
+      //     }
+      //   }
+      // );
     }
-
-    res.sendStatus(200);
+    
   } catch (error) {
     console.error("Error handling webhook:", error.response?.data || error);
     res.sendStatus(500);
   }
 });
-    
 
 export default router;

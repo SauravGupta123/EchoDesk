@@ -6,6 +6,7 @@ const faqSchema = new mongoose.Schema({
 });
 
 const Faq = mongoose.model("Faq", faqSchema);
+export default Faq; 
 
 const seedFaqs = async () => {
   await mongoose.connect("mongodb://127.0.0.1:27017/support_ai");
@@ -21,4 +22,4 @@ const seedFaqs = async () => {
   process.exit();
 };
 
-seedFaqs();
+// seedFaqs();

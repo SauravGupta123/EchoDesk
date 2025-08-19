@@ -1,5 +1,5 @@
-import dotenv from 'dotenv';
-dotenv.config();
+// import dotenv from 'dotenv';
+// dotenv.config();
 import { Pinecone } from "@pinecone-database/pinecone";
 import mongoose from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
