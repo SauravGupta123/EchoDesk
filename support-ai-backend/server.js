@@ -6,6 +6,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import 'express-async-errors';
 import authRoutes from "./src/routes/auth.js";
+import feedbackRoutes from "./src/routes/feedback.js";
 
 import webhookRouter from './src/routes/webhooks.js';
 import mongoose from 'mongoose';
@@ -32,6 +33,7 @@ app.use(morgan('dev'));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/webhook', webhookRouter);
 app.use("/api/auth", authRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/tickets", ticketRoutes);
 
 app.get("/", (req, res) => {
